@@ -1,0 +1,62 @@
+module synchronous_fifo #(
+    parameter DATA_WIDTH = 8,  // Data width
+    parameter ADDR_WIDTH = 4   // Address width (depth = 2^ADDR_WIDTH)
+)(
+    input clk,                // Clock
+    input rst,                // Reset
+    input wr_en,              // Write enable
+    input rd_en,              // Read enable
+    input [DATA_WIDTH-1:0] data_in, // Data input
+    output reg [DATA_WIDTH-1:0] data_out, // Data output
+    output reg full,          // FIFO full flag
+    output reg empty          // FIFO empty flag
+);
+
+    // Internal parameters
+    localparam DEPTH = 1 << ADDR_WIDTH;
+
+    // Internal signals
+    reg [DATA_WIDTH-1:0] fifo_mem[DEPTH-1:0];
+    reg [ADDR_WIDTH-1:0] wr_ptr;
+    reg [ADDR_WIDTH-1:0] rd_ptr;
+    reg [ADDR_WIDTH:0] count; // Counter for FIFO depth
+
+    // Write logic
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            wr_ptr <= 0;
+            count <= 0;
+            full <= 0;
+        end else if (wr_en && !full) begin
+            fifo_mem[wr_ptr] <= data_in;
+            wr_ptr <= wr_ptr + 1;
+            count <= count + 1;
+        end
+
+        // Update full flag
+        if (count == DEPTH - 1)
+            full <= 1;
+        else
+            full <= 0;
+    end
+
+    // Read logic
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            rd_ptr <= 0;
+            data_out <= 0;
+            empty <= 1;
+        end else if (rd_en && !empty) begin
+            data_out <= fifo_mem[rd_ptr];
+            rd_ptr <= rd_ptr + 1;
+            count <= count - 1;
+        end
+
+        // Update empty flag
+        if (count == 0)
+            empty <= 1;
+        else
+            empty <= 0;
+    end
+
+endmodule
